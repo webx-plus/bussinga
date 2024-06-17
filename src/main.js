@@ -6,7 +6,7 @@ let open_tabs = JSON.parse(localStorage.getItem(`tabs`) || `[]`);
 
 window.dnsCache = {}
 
-if(!localStorage.getItem(`dns`)) localStorage.setItem(`dns`, `https://webxdns.votemanager.xyz/resolve`);
+if(!localStorage.getItem(`dns`)) localStorage.setItem(`dns`, `https://dns.webxplus.org/resolve`);
 if(!localStorage.getItem(`newTabPage`)) localStorage.setItem(`newTabPage`, `buss://search.frontdoor`);
 if(!localStorage.getItem(`global_history`)) localStorage.setItem(`global_history`, `[]`);
 
