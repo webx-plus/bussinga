@@ -32,21 +32,27 @@ class luaEngine {
                     set_dns: (t)=>{
                         localStorage.setItem(`dns`, t)
                         window.dnsProviders["buss:"] = new window.dnsLooker(t)
-                        window.preDomainCache()
                     },
                     set_newtab: (t)=>{
                         localStorage.setItem(`newTabPage`, t)
                     },
                     flush_dns: ()=>{
                         window.dnsCache = {}
-                    }
+                    },
+                    get_history: ()=>{
+                        return JSON.parse(localStorage.getItem("global_history") ?? "[]")
+                    },
+                    clear_history: ()=>{
+                        localStorage.setItem("global_history", "[]")
+                    },
                 })
             }
 
             this.lua.global.set('window', {
                 location: loc,
                 query: q,
-                browser: "bussinga"
+                browser: "bussinga",
+                link: loc
             })
 
             let fetchCache = [], waitingToCache = 0;

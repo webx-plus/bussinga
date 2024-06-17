@@ -150,10 +150,18 @@ body{
   background-color: transparent;
   box-shadow: 0 0 5px rgba(0,0,0,0.5) inset;
   border: none;
-  height: 80%;
   border-radius: 3px;
+  display: grid;
+  place-content: center;
+  height: 24px;
   outline: none;
   color: var(--text1);
+}
+#searchBar .searchBarActionsRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
 
 #contents{

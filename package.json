@@ -1,10 +1,11 @@
 {
-  "name": "buzzr",
+  "name": "webx-plus-bussinga",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev": "npx http-server -o ./src"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.14"

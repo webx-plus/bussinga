@@ -21,7 +21,7 @@ print(output.status)
 local cards = get("card", true)
 print(cards)`]*/
 
-    let lua = [], meta = [], icon = "./bazinga.jpg";
+    let lua = [], meta = [], icon = "./bazinga.jpg", buss_links = [];
 
     while(true){
         if(typeof html == "string") html = html.split("");
@@ -65,16 +65,30 @@ print(cards)`]*/
             let gyatt = async function(html){
                 try{
                     if(atrocity == "meta"){
-                        let name = entireTag.split("name=\"")[1].split("\"")[0],
-                            content = entireTag.split("content=\"")[1].split("\"")[0];
-                        
-                        meta[name] = content
+                        if (entireTag.includes("http-equiv=\"refresh\"")) {
+                            const value = entireTag.split("content=\"")[1].split("\"")[0];
+                            let [wait, url] = value.split(";url=");
+                            if (!isNaN(wait) && url) {
+                                await new Promise(r => setTimeout(r, parseInt(wait) * 1000));
+                            };
+                            return {
+                                redirect: entireTag.split("url=")[1].split("\"")[0]
+                            };
+                        } else if (entireTag.includes("charset=\"")) {
+                            meta.charset = entireTag.split("charset=\"")[1].split("\"")[0];
+                        } else {
+                            let name =
+                                entireTag.includes("property=\"") ? entireTag.split("property=\"")[1].split("\"")[0] :
+                                entireTag.split("name=\"")[1].split("\"")[0];
+                            meta[name] = entireTag.split("content=\"")[1].split("\"")[0];
+                        }
                     }
     
                     if(atrocity == "link" && entireTag.includes(`.css`)){
                         let href = entireTag.split("href=")[1].split("\"")[1];
-                        if(!href.startsWith(`http`)){
-                            href = url  + "../" + href
+                        let uri = new URI(href);
+                        if(uri.is("relative")){
+                            href = uri.absoluteTo(url);
                         };
     
                         let cssContent = await ffetch(href, {
@@ -88,13 +102,13 @@ print(cards)`]*/
                         html[html.length - 1] += `<style>${cssContent}</style>`
                     }else if(atrocity == "link"){
                         icon = entireTag.split("href=\"")[1].split("\"")[0];
-                        console.log(icon)
                     }
 
                     if(atrocity == "script" && entireTag.includes(`.lua`)){
                         let href = entireTag.split("src=")[1].split("\"")[1];
-                        if(!href.startsWith(`http`)){
-                            href = url + "../" + href
+                        let uri = new URI(href);
+                        if(uri.is("relative")){
+                            href = uri.absoluteTo(url);
                         }
     
                         let content = await ffetch(href, {
@@ -104,6 +118,19 @@ print(cards)`]*/
                         html = html.join("").replace(`<${entireTag}</${atrocity}>`, "").split("")
     
                         if(content.status == 200 && !lua.includes(content.data)) lua.push(content.data);
+                    }
+
+                    if (atrocity == "a" && entireTag.includes("href=\"") && entireTag.split("href=\"")[1]) {
+                        let href = entireTag.split("href=\"")[1].split("\"")[0];
+                        const uri = new URI(href);
+                        if (uri.protocol() === "buss") {
+                            console.log("buss:// URL found: ", href);
+                            const id = crypto.randomUUID();
+                            buss_links.push({id, href});
+                            let html_removed = html.join("");
+                            html_removed = html_removed.slice(0, i - entireTag.length) + "<" + entireTag.replace(`href="${href}"`, `data-bussinga-injected-link-id="${id}"`) + html_removed.slice(i + 1, html_removed.length);
+                            html = html_removed.split("");
+                        };
                     }
                 }catch(e){
                     console.log(e)
@@ -152,8 +179,8 @@ print(cards)`]*/
                 entireTag = ``;
                 continue;
             }else if(e == `<`){
-                html[i] = `!${e}!`
-                throw new Error(`You did war crime (< tag <). So, like, your HTML is fucked man. Anyway, try to spot where the parser went wrong, we put some little exclamation marks around the war crime. have fun!!! ${html.join("")}`)
+                html[i] = `! ! ! ! ${e} ! ! ! !`
+                throw new Error(`You commited a HTML War Crime! Bussinga was unable to parse your HTML, so we put some exclaimation marks around it so you could find it\n${html.join("")}`)
             }
 
             if(!sigma) continue;
@@ -186,6 +213,7 @@ print(cards)`]*/
         lua,
         title: html.match(new RegExp("<title>(.*?)</title>"))?.[1] || "website",
         meta,
-        icon
+        icon,
+        buss_links
     };
 }

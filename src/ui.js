@@ -8,6 +8,7 @@ function uiRefresh(){
         <i class='bx bx-plus'></i>
     </div>`
 
+    const tab_list = [];
     ;[...document.querySelectorAll(`iframe`)].reverse().forEach((i)=>{
         let tabElement = document.createElement(`div`)
         tabElement.classList.add(`tab`)
@@ -40,7 +41,8 @@ function uiRefresh(){
         })
         closeBtn.addEventListener(`click`, ()=>{
             i.c.close();
-        })
+        });
+        tab_list.push(i.getAttribute("location"));
     })
 
     document.querySelector(`.newTab`).addEventListener("click", ()=>{
@@ -54,9 +56,11 @@ function uiRefresh(){
             let sel = [...document.querySelectorAll(`iframe`)].find((t)=>t.getAttribute(`tabID`) == selectedTab);
             document.querySelector(`#search`).value = sel.getAttribute("location")
         }
-        else new site("bussinga://settings.bang");
+        else new site(localStorage.getItem(`newTabPage`) ?? "bussinga://welcome.bang");
         uiRefresh();
-    }
+    };
+
+    localStorage.setItem(`tabs`, JSON.stringify(tab_list));
 }
 
 document.querySelector(`#search`).addEventListener('keydown',(e)=>{
@@ -68,12 +72,26 @@ document.querySelector(`#search`).addEventListener('keydown',(e)=>{
     }
 })
 
-function refreshCurrentSite(){
-    let sel = [...document.querySelectorAll(`iframe`)].find((t)=>t.getAttribute(`tabID`) == window.selectedTab);
+document.querySelector(`#refreshPage`).addEventListener(`click`, () => {
+    let sel = [...document.querySelectorAll(`iframe`)].find((t)=>t.getAttribute(`tabID`) == selectedTab);
     sel.c.refresh();
-}
-document.querySelector(`#refreshPage`).addEventListener(`click`, refreshCurrentSite)
+});
+document.querySelector("#previousPage").addEventListener(`click`, ()=>{
+    let sel = [...document.querySelectorAll(`iframe`)].find((t)=>t.getAttribute(`tabID`) == selectedTab);
+    sel.c.goBack();
+});
+document.querySelector("#nextPage").addEventListener(`click`, ()=>{
+    let sel = [...document.querySelectorAll(`iframe`)].find((t)=>t.getAttribute(`tabID`) == selectedTab);
+    sel.c.goForward();
+});
+
 document.querySelector(`#settings`).addEventListener(`click`, ()=>{
     selectedTab = window.currentTabID + 1;
     new site(`bussinga://settings.bang`);
-})
+});
+document.querySelector(`#history`).addEventListener(`click`, ()=>{
+    selectedTab = window.currentTabID + 1;
+    new site(`bussinga://history.bang`);
+});
+
+

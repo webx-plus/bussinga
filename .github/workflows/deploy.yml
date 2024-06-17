@@ -1,0 +1,21 @@
+name: CD - Deploy to VPS
+on:
+  release:
+    types: [published]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Deploy using ssh to VPS
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.PRIMARY_HOST }}
+        username: ${{ secrets.PRIMARY_USERNAME }}
+        key: ${{ secrets.PRIMARY_KEY }}
+        port: 22
+        script: |
+          cd /home/lifn/webx/bussinga
+          git restore .
+          git pull --ff
+          git status
+          dckr li-webx-bussinga
