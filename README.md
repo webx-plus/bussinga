@@ -11,6 +11,9 @@ It has, like,
 - Lua that doesn't hang the main thread & is lightning-fast
 - Tabs
 - Themes
+- History
+- URL Paths
+- Links between pages
 - An easily swappable DNS
 - Localhost testing with `localhost://3000`
 - Sheldon cooper
