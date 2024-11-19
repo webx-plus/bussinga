@@ -428,3 +428,4 @@ uiRefresh();
 //new site("buss://minesweeper.lol")
 //new site("buss://blackjack.lol")
 //new site("bussinga://welcome")
+
