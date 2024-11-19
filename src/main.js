@@ -1,76 +1,38 @@
-const INTERNAL_PAGES_SOURCE = "https://raw.githubusercontent.com/webx-plus/internalPages/main";
-const INTERNAL_PAGES = ["settings", "welcome", "update", "history"];
 let THEME;
-
-let open_tabs = JSON.parse(localStorage.getItem(`tabs`) || `[]`);
 
 window.dnsCache = {}
 
 if(!localStorage.getItem(`dns`)) localStorage.setItem(`dns`, `https://dns.webxplus.org/resolve`);
 if(!localStorage.getItem(`newTabPage`)) localStorage.setItem(`newTabPage`, `buss://search.frontdoor`);
-if(!localStorage.getItem(`global_history`)) localStorage.setItem(`global_history`, `[]`);
 
 // Init window whatever
-let http;
-if (typeof __TAURI__ !== "undefined") {
-  const appWindow = __TAURI__.window.appWindow;
-  http = __TAURI__.http;
+const appWindow = __TAURI__.window.appWindow,
+      http = __TAURI__.http
 
-  window.http = http;
-  window.ffetch = http.fetch;
-  
-  document
-    .getElementById('titlebar-minimize')
-    .addEventListener('click', () => appWindow.minimize())
-  document
-    .getElementById('titlebar-maximize')
-    .addEventListener('click', () => appWindow.toggleMaximize())
-  document
-    .getElementById('titlebar-close')
-    .addEventListener('click', () => appWindow.close());
+window.http = http;
+window.ffetch = http.fetch;
 
-  function isFullScreen(){
-    return appWindow.isMaximized() || appWindow.isFullScreen();
-  }
+document
+  .getElementById('titlebar-minimize')
+  .addEventListener('click', () => appWindow.minimize())
+document
+  .getElementById('titlebar-maximize')
+  .addEventListener('click', () => appWindow.toggleMaximize())
+document
+  .getElementById('titlebar-close')
+  .addEventListener('click', () => appWindow.close());
 
-  window.addEventListener(`resize`, ()=>{
-    setTimeout(async()=>{
-      if(await isFullScreen()){
-        document.getElementById(`fullScreenIcon`).className = "bx bx-exit-fullscreen"
-      }else document.getElementById(`fullScreenIcon`).className = "bx bx-fullscreen"
-    },10)
-  })
-} else {
-  http = {
-    fetch: async(uri, options) => {
-      //hope this works
-      //im sorry if you have to debug it
-      const request = await fetch(uri, options);
-      let result;
-      if (options && options.responseType === 2) {
-        const clone = request.clone();
-        result = await request.json().catch(() => clone.text());
-      } else {
-        result = await request.text();
-      };
-      return {
-        data: result,
-        headers: request.headers,
-        ok: request.ok,
-        status: request.status,
-        url: request.url,
-      }
-    },
-    ResponseType: {
-      "Text": 1,
-      "JSON": 2,
-      "Binary": 3
-    }
-  };
-  window.http = http;
-  window.ffetch = http.fetch;
-  document.querySelector(".rightActions").remove();
-};
+function isFullScreen(){
+  return appWindow.isMaximized() || appWindow.isFullScreen();
+}
+
+window.addEventListener(`resize`, ()=>{
+  setTimeout(async()=>{
+    if(await isFullScreen()){
+      document.getElementById(`fullScreenIcon`).className = "bx bx-exit-fullscreen"
+    }else document.getElementById(`fullScreenIcon`).className = "bx bx-fullscreen"
+  },10)
+})
 
 // Init themes
 let themeConfig;
@@ -95,12 +57,12 @@ paintTheme(false);
 window.paintTheme = paintTheme;
 
 // alright actual website stuff now
-function getRawGithubUrl(githubUrl) {
+function getRawGithubIndexUrl(githubUrl) {
   // Extract username and repo name from the URL
   const [username, repoName] = githubUrl.replace(`https://github.com/`, ``).split("/");
 
   // Return the transformed URL for raw content
-  return `https://raw.githubusercontent.com/${username}/${repoName}/main`;
+  return `https://raw.githubusercontent.com/${username}/${repoName}/main/index.html`;
 }
 
 function traverse(o,func) {
@@ -113,6 +75,17 @@ function traverse(o,func) {
   }
 }
 
+function preDomainCache(){
+  return; // at the time of writing, https://api.buss.lol/domains is down, so I can't make this feature
+
+  ffetch(new URI(localStorage.getItem(`dns`) + `/../domains`).normalize().toString()).then((r)=>{
+    console.log(r)
+  })
+}
+
+preDomainCache();
+
+window.preDomainCache = preDomainCache;
 window.currentTabID = 0;
 window.tabs = []
 
@@ -123,12 +96,10 @@ class dnsLooker {
 
   lookup(siteName, tld){
     return new Promise((resolve, reject)=>{
-      ffetch(`${this.url}/${siteName}/${tld}`, {
-        responseType: http.ResponseType.JSON
-      }).then((r)=>{
+      ffetch(`${this.url}/${siteName}/${tld}`).then((r)=>{
+        console.log(r)
         switch(r.status){
           case 200:
-          case 304:
             resolve(r.data)
             break;
           case 404:
@@ -145,7 +116,6 @@ class dnsLooker {
             break;
         }
       }).catch((e)=>{
-        console.error(e)
         reject({
           title: `Internal DNS Error`,
           text: e
@@ -153,16 +123,16 @@ class dnsLooker {
       })
     })
   }
-};
+}
+
+window.dnsLooker = dnsLooker;
+
 class site {
   constructor(url, id){
-    this.historyPosition = 0;
-    this.history = [];
-
     this.iframe = document.createElement(`iframe`)
-    this.iframe.setAttribute(`sandbox`, `allow-same-origin allow-scripts allow-top-navigation-to-custom-protocols allow-popups allow-top-navigation`)
+    this.iframe.setAttribute(`sandbox`, `allow-same-origin allow-scripts`)
 
-    const tabID = ++currentTabID
+    const tabID = id || ++currentTabID
 
     this.tabID = tabID
     this.iframe.c = this;
@@ -176,7 +146,7 @@ class site {
     this.navigateID = 0;
     this.navigate(url);
   }
-  navigate(url, dontaddtohistory = false){
+  navigate(url){
     let thisNavigateID = ++this.navigateID;
 
     this.iframe.contentWindow.document.close();
@@ -192,9 +162,8 @@ class site {
     // Get info about the domain
     this.urlParsed = new URI(url)
     this.tld = this.urlParsed.tld();
-    this.siteName = this.urlParsed.hostname().split(".").slice(0,-1).join(".");
+    this.siteName = this.urlParsed.domain().split(".").slice(0,-1).join(".");
     this.protocol = this.urlParsed.protocol();
-    this.path = this.urlParsed.pathname();
 
     // Init page
     this.doc = this.iframe.contentWindow.document;
@@ -207,103 +176,83 @@ class site {
     let finishUp = ()=>{
       this.doc = this.iframe.contentWindow.document;
 
-      const injectedElement = document.createElement(`style`);
-      injectedElement.innerHTML = `
-        /* injected by bussinga */
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Varela+Round&display=swap');
-        *{box-sizing: border-box;}
-        .query{height:fit-content !important}
-        img{
-          width: fit-content;
-        }
-        body {
+      let injected = `
+      /* injected by bussinga */
+      @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Varela+Round&display=swap');
+      *{box-sizing: border-box;}
+      .query{height:fit-content !important}
+      body{
+        width:100vw;
+        height:100vh;
+        font-family: ${themeConfig["font"]};
+        padding: 12px;
+        margin: 0 !important;
+      }
+      img{
+        width: fit-content;
+      }
+      *{flex-shrink:0;}
+      hr{
+        width: 100%;
+      } 
+      h1,h2,h3,h4,h5,h6,p,a{
+        margin: 3px;
+      }
+      a{
+        color: ${themeConfig["link"]};
+        text-decoration: none;
+      }
+      p, a, select{
+        font-size: x-small;
+      }
+      button, input, select, option{
+        background-color: ${themeConfig["button"]};
+        font-family: ${themeConfig["font"]};
+        transition: 0.2s;
+        color: ${themeConfig["text1"]};
+        border: none;
+        border-radius: 6px;
+        padding: 18px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+      select, option{
+        color:${themeConfig["text2"]};
+        margin: 0;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        outline: none;
+      }
+      input{
+        box-shadow: 0 0 3px black inset;
+      }
+      button:hover{
+        background-color: ${themeConfig["highlight"]};
+        transition: 0.2s;
+      }
+      hr{
+        border: none;
+        border-bottom: 1px solid ${themeConfig["text1"]};
+      }
+      body{
+        background-color: ${themeConfig["background"]};
+        color: ${themeConfig["text1"]};
+      }`,
+        injectedElement = document.createElement(`style`);
+      
+      injectedElement.innerHTML = injected
 
-          gap: 10;
-          background-color: ${themeConfig["background"]};
-          color: ${themeConfig["text1"]};
-          direction: column;
-          align-items: fill;
-          width:100vw;
-          height:100vh;
-          font-family: ${themeConfig["font"]};
-          padding: 12px;
-          margin: 0;
-        }
-        h1 {font-size: 32px;}
-        h2 {font-size: 28px;}
-        h3 {font-size: 26px;}
-        h4 {font-size: 24px;}
-        h5 {font-size: 20px;}
-        h6 {font-size: 18px;}
-
-        a {
-          border: none;
-          color: ${themeConfig["link"]};
-          text-decoration: underline;
-        }
-
-        input, button, select, option {
-          background-color: ${themeConfig["button"]};
-          font-family: ${themeConfig["font"]};
-          color: ${themeConfig["text1"]};
-          padding: 5px;
-          border-color: #616161;
-          border-width: 1px;
-          border-style: solid;
-          border-radius: 8px;
-        }
-
-        button:hover {
-          background-color: ${themeConfig["highlight"]};
-          transition: 0.2s;
-        }
-        hr {
-          border: none;
-          border-bottom: 1px solid ${themeConfig["text1"]};
-          width: 100%;
-        }
-
-        textarea {
-          padding: 5px;
-          border-color: #616161;
-          border-width: 1px;
-          border-style: solid;
-          border-radius: 12px;
-
-          width: 400px;
-          height: 100px;
-        }
-      `,
-      this.doc.head.prepend(injectedElement);
+      this.doc.head.prepend(injectedElement)
 
       if(!this.doc.body.firstChild.tagName){
         this.doc.body.firstChild.remove();
       }
 
       this.iframe.contentWindow.addEventListener(`click`, (e)=>{
-        if (!e.target.href) return;
-        e.preventDefault();
-        const href = e.target.getAttribute("href");
-        const link = e.target;
-        if(href?.startsWith("http://") || href?.startsWith("https://")) return window.open(href);
-        const protocol = href.includes("://") ? href.split("://")[0] : this.protocol;
-        const uri = new URI(href);
-        let destination = uri;
-        if(uri.is("relative")){
-          destination = uri.absoluteTo(this.urlParsed.toString());
-          console.log(destination);
-      };
-        if (link.getAttribute("target") == "_blank") return new site(destination.toString());
-        this.navigate(destination.toString());
-      });
-
-      if (!dontaddtohistory) {
-        const global_history = JSON.parse(localStorage.getItem("global_history") || `[]`);
-        localStorage.setItem("global_history", JSON.stringify([...global_history, {url, name: this.iframe.getAttribute("title"), date: new Date().getTime()}]));
-        this.history = this.history.slice(0, this.historyPosition + 1);
-        this.history.push(url);
-        this.historyPosition = this.history.length - 1;
-      };
+        if(e.target?.href?.startsWith("buss://")){
+          this.navigate(e.target.href)
+        }
+      })
 
       uiRefresh();
     }
@@ -344,50 +293,40 @@ class site {
       }catch{
         showError({
           title: `Not Found`,
-          text: `${url} doesn't exist`
+          text: `${url} doesn't exist.`
         })
         return;
       }
 
-      if (!IP.startsWith(`http://`) && !IP.startsWith(`https://`)) IP = `https://${IP}`;
       if(IP.startsWith(`https://github.com/`)){
-        IP = getRawGithubUrl(IP)
+        IP = getRawGithubIndexUrl(IP)
       }
 
       console.log(`DNS lookup done`)
 
       this.iframe.setAttribute(`title`, "Loading...")
-      uiRefresh();
-      let url_path = this.protocol == "bussinga" ? "" : `${this.path}${this.path.endsWith(".html") || this.path.endsWith(".htm") ? "" : this.path.endsWith("/") ? "index.html" : "/index.html"}`;
-      ffetch(`${IP}${url_path}${this.urlParsed.search()}${this.urlParsed.hash()}`, {
+      uiRefresh()
+
+      ffetch(IP, {
         method: "GET",
-        responseType: 2
+        responseType: http.ResponseType.Text
       }).then(async (r)=>{
-        if (r.status == 404) {
-          showError({
-            title: "Not Found",
-            text: `The page ${url_path} was not found on ${IP}. Please make sure the URL is correct and try again.`
-          })
-        } else if (r.status !== 200) {
-          showError({
-            title: "Website error",
-            text: `The WebX site you're navigating to returned a ${r.status} status. This is simply unacceptable, thus I refuse to render it.`
-          })
-        }
         if(this.navigateID != thisNavigateID) return;
+
+        if(String(r.status).startsWith(`5`)){
+          showError({
+            title: `Website error`,
+            text: `The WebX site you're navigating to returned a 5xx error code: ${r.status}. This is simply unacceptable, thus I refuse to render it.`
+          })
+          return;
+        }
         
         console.log(`Website fetch done...`)
         try{
           let parsedIP = new URI(IP + "/"),
-            parsed = await parseHTMLPP(r.data, `${IP}${url_path}`, parsedIP.port());
+              parsed = await parseHTMLPP(r.data, parsedIP.setSearch("").normalize().toString(), parsedIP.port());
           
-          this.doc.write(parsed.html);
-
-          parsed.buss_links.forEach(x => {
-            const tag = this.doc.querySelector(`[data-bussinga-injected-link-id="${x.id}"]`);
-            tag.setAttribute(`href`, x.href);
-            tag.removeAttribute(`data-bussinga-injected-link-id`);
-          })
+          this.doc.write(parsed.html)
 
           this.iframe.setAttribute(`title`, parsed.title)
           this.iframe.setAttribute(`image`, parsed.icon)
@@ -405,99 +344,88 @@ class site {
             text: e
           })
         }
-      }).catch(e => {
-
-      });
+      })
     })()
   }
   refresh(){
-    this.navigate(this.iframe.getAttribute(`location`), true);
+    this.navigate(this.iframe.getAttribute(`location`))
   }
   close(){
     try{
       window.tabs = window.tabs.filter((i) => i != this.tabID);
       this.iframe.remove();
-      uiRefresh();
+      uiRefresh()
 
     }catch(e){
       console.log(e)
     }
   }
-  goBack() {
-    console.log(this.historyPosition)
-    console.log(this.history)
-    if (this.historyPosition <= 0) return;
-    this.historyPosition--;
-    this.navigate(this.history[this.historyPosition], true);
-  }
-  goForward() {
-    if (this.historyPosition >= this.history.length - 1) return;
-    this.historyPosition++;
-    this.navigate(this.history[this.historyPosition], true);
-  }
-};
-
+}
 
 window.site = site;
-window.dnsLooker = dnsLooker;
-window.dnsProviders = {
+
+ let dnsProviders = {
   "bussinga": {
-    lookup: (domain, tld)=>{
+    lookup: (url, tld)=>{
+     console.log(url, tld)
       return new Promise((res,rej)=>{
-        if(tld != "bang" || !INTERNAL_PAGES.includes(domain)) rej();
+        if(tld != "bang" || !["settings"].includes(url)) rej();
         res({
-          ip: `${INTERNAL_PAGES_SOURCE}/${domain}.html`
+         //ip: `https://bussingah.pages.dev/${url}.html`,
+          ip: `https://raw.githubusercontent.com/webx-plus/internalPages/main/${url}.html`
         })
       })
     }
   },
   "localhost": {
-    lookup: (domain, tld)=>{
+    lookup: (url, tld)=>{
       return new Promise((res,rej)=>{
         res({
-          ip: `http://127.0.0.1:${domain}`
+          ip: `http://127.0.0.1:${url}/index.html`
         })
       })
     }
   },
   "buss": new dnsLooker(localStorage.getItem(`dns`))
-};
+}
+window.dnsProviders = dnsProviders;
+
 window.domains = {
-  lookup: (domain, tld, protocol)=>{
-    if(!isNaN(Number(tld)) && protocol == "localhost") domain = tld;
+  lookup: (url, tld, protocol)=>{
+    if(!isNaN(Number(tld)) && protocol == "localhost") url = tld;
 
     return new Promise((res, rej)=>{
-      if(window.dnsCache[`${domain}|.|${tld}|.|${protocol}`]){
-        res(window.dnsCache[`${domain}|.|${tld}|.|${protocol}`]);
+      if(window.dnsCache[`${url}|.|${tld}|.|${protocol}`]){
+        res(window.dnsCache[`${url}|.|${tld}|.|${protocol}`]);
       }
 
       if(dnsProviders[protocol]){
-        dnsProviders[protocol].lookup(domain, tld).then((r)=>{
-          window.dnsCache[`${domain}|.|${tld}|.|${protocol}`] = r;
+        dnsProviders[protocol].lookup(url, tld).then((r)=>{
+          window.dnsCache[`${url}|.|${tld}|.|${protocol}`] = r;
           res(r)
         }).catch(rej);
       }
       else rej();
     })
-  }
-}
 
-// uiRefresh();
+    return;
+    return new Promise(async(res, rej)=>{
+      for (let i = 0; i < dnsProviders.length; i++) {
+        try{
+          res(await dnsProviders[i].lookup(url, tld));
+        }catch{}
+      }
 
-//Load previous tabs
-if (open_tabs.length > 0) {
-  for (const tab of open_tabs.reverse()) {
-    new site(tab);
+      rej()
+    })
   }
-} else {
-  new site("bussinga://welcome.bang");
 }
 
 uiRefresh();
-
 
 //new site("buss://dnssearch.uwu")
 //new site("buss://yap.yap?dingle=it")
 //new site("buss://minesweeper.lol")
 //new site("buss://blackjack.lol")
 //new site("bussinga://welcome")
+

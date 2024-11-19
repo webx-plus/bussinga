@@ -86,9 +86,8 @@ print(cards)`]*/
     
                     if(atrocity == "link" && entireTag.includes(`.css`)){
                         let href = entireTag.split("href=")[1].split("\"")[1];
-                        let uri = new URI(href);
-                        if(uri.is("relative")){
-                            href = uri.absoluteTo(url);
+                        if(!href.startsWith(`http`)){
+                            href = url  + "../" + href
                         };
     
                         let cssContent = await ffetch(href, {
@@ -103,12 +102,10 @@ print(cards)`]*/
                     }else if(atrocity == "link"){
                         icon = entireTag.split("href=\"")[1].split("\"")[0];
                     }
-
-                    if(atrocity == "script" && entireTag.includes(`.lua`)){
+					if(atrocity == "script" && entireTag.includes(`.lua`)){
                         let href = entireTag.split("src=")[1].split("\"")[1];
-                        let uri = new URI(href);
-                        if(uri.is("relative")){
-                            href = uri.absoluteTo(url);
+                        if(!href.startsWith(`http`)){
+                            href = url + "../" + href
                         }
     
                         let content = await ffetch(href, {
