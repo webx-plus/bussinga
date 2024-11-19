@@ -100,7 +100,7 @@ function getRawGithubUrl(githubUrl) {
   const [username, repoName] = githubUrl.replace(`https://github.com/`, ``).split("/");
 
   // Return the transformed URL for raw content
-  return `https://raw.githubusercontent.com/${username}/${repoName}/refs/heads/main/index.html`;
+  return `https://raw.githubusercontent.com/${username}/${repoName}/main`;
 }
 
 function traverse(o,func) {
