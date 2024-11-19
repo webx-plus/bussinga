@@ -86,9 +86,8 @@ print(cards)`]*/
     
                     if(atrocity == "link" && entireTag.includes(`.css`)){
                         let href = entireTag.split("href=")[1].split("\"")[1];
-                        let uri = new URI(href);
-                        if(uri.is("relative")){
-                            href = uri.absoluteTo(url);
+                        if(!href.startsWith(`http`)){
+                            href = url  + "../" + href
                         };
     
                         let cssContent = await ffetch(href, {
