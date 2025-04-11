@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "dev": "npx http-server -o ./src"
+    "dev": "npx http-server -o ./src",
+    "prod": "npx http-server -p:3003:3003 -o ./src"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.14"
