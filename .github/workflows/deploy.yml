@@ -14,8 +14,8 @@ jobs:
         key: ${{ secrets.PRIMARY_KEY }}
         port: 22
         script: |
-          cd /home/lifn/webx/bussinga
+          cd /home/webx-plus/bussinga
           git restore .
           git pull --ff
           git status
-          dckr li-webx-bussinga
+          dckr wxp-bussinga
